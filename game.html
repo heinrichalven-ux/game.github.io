@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chrome Dino Game Clone</title>
+  <style>
+    :root {
+      --bg: #f7f7f7;
+      --ground: #2b2b2b;
+      --dino: #222;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(#e9eef5, var(--bg));
+      font-family: Arial, sans-serif;
+    }
+    .wrap {
+      width: 900px;
+      max-width: calc(100% - 40px);
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+      padding: 18px;
+      text-align: center;
+    }
+    #game {
+      display: block;
+      background: linear-gradient(#fff, #f3f3f3);
+      border-radius: 6px;
+      width: 100%;
+      height: 160px;
+      cursor: pointer;
+    }
+    #score {
+      font-weight: bold;
+    }
+    #videoContainer {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    #videoContainer video {
+      max-width: 90%;
+      max-height: 90%;
+      border: 4px solid white;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Chrome Dino Clone</h1>
+    <canvas id="game" width="900" height="160"></canvas>
+    <p>Score: <span id="score">0</span></p>
+    <p><small>Press Space / Tap to jump · R to restart</small></p>
+  </div>
+
+  <!-- Hidden video overlay -->
+  <div id="videoContainer">
+    <video id="gameOverVideo" src="play.mp4" controls></video>
+  </div>
+
+  <script>
+  (function() {
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const videoContainer = document.getElementById('videoContainer');
+    const video = document.getElementById('gameOverVideo');
+
+    let W = canvas.width, H = canvas.height;
+    let groundY = H - 30;
+    let running = false, score = 0, speed = 4, spawnTimer = 0;
+    let obstacles = [];
+
+    const dino = { x: 40, y: groundY - 40, w: 40, h: 40, vy: 0, gravity: 0.9, jumpForce: -14, grounded: true };
+
+    function spawnObstacle() {
+      const h = Math.round(Math.random() * 30 + 20);
+      obstacles.push({ x: W + 20, w: 20, h: h, y: groundY - h });
+    }
+
+    function jump() {
+      if (dino.grounded) {
+        dino.vy = dino.jumpForce;
+        dino.grounded = false;
+      }
+    }
+
+    window.addEventListener('keydown', e => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        if (!running) start();
+        jump();
+      }
+      if (e.code === 'KeyR') start();
+    });
+
+    canvas.addEventListener('click', () => {
+      if (!running) start();
+      jump();
+    });
+
+    function collides(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    function start() {
+      running = true;
+      score = 0; speed = 4; obstacles = []; spawnTimer = 0;
+      dino.y = groundY - dino.h; dino.vy = 0; dino.grounded = true;
+      videoContainer.style.display = "none";
+      video.pause();
+      video.currentTime = 0;
+      loop();
+    }
+
+    function gameOver() {
+      running = false;
+      // show video overlay
+      videoContainer.style.display = "flex";
+      video.play();
+    }
+
+    function loop() {
+      if (!running) return;
+      ctx.clearRect(0, 0, W, H);
+
+      // ground
+      ctx.fillStyle = "#efefef";
+      ctx.fillRect(0, groundY, W, H - groundY);
+
+      // update dino
+      dino.vy += dino.gravity;
+      dino.y += dino.vy;
+      if (dino.y + dino.h >= groundY) {
+        dino.y = groundY - dino.h;
+        dino.vy = 0;
+        dino.grounded = true;
+      }
+
+      // draw dino
+      ctx.fillStyle = "#222";
+      ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
+
+      // obstacles
+      spawnTimer++;
+      if (spawnTimer > 100) { spawnObstacle(); spawnTimer = 0; }
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        let ob = obstacles[i];
+        ob.x -= speed;
+        ctx.fillStyle = "#444";
+        ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
+        if (collides(dino, ob)) return gameOver();
+        if (ob.x + ob.w < 0) obstacles.splice(i, 1);
+      }
+
+      // score
+      score++;
+      scoreEl.textContent = score;
+
+      requestAnimationFrame(loop);
+    }
+
+    // initial draw
+    ctx.fillStyle = "#888";
+    ctx.font = "20px Arial";
+    ctx.fillText("Click or press Space to start", 250, 90);
+  })();
+  </script>
+</body>
+</html>
